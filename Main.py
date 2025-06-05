@@ -96,6 +96,9 @@ class News_app(QWidget):
 
     def Headlines(self):
         self.layout2 = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.layout2)
 
         self.header= QLabel("News Buddy",self)
         self.news_label=QLabel("Enter Category:",self)
@@ -110,12 +113,16 @@ class News_app(QWidget):
         self.image_label.setAlignment(Qt.AlignCenter)
 
         
-        l2=QVBoxLayout()  
-        l2.addWidget(self.header)
-        hbox=QHBoxLayout()
-        hbox.addWidget(self.news_label)
-        hbox.addWidget(self.topic_input)
-        hbox.addWidget(self.button)
+        self.l2=QVBoxLayout()  
+        self.l2.addWidget(self.header)
+        self.hbox=QHBoxLayout()
+        self.hbox.addWidget(self.news_label)
+        self.hbox.addWidget(self.topic_input)
+        self.hbox.addWidget(self.button)
+        self.l2.addLayout(self.hbox)
+        
+        self.button.clicked.connect(self.search_headlines)
+        """
         l2.addLayout(hbox)
         l2.addWidget(self.news_title)
         h=QHBoxLayout()
@@ -125,13 +132,13 @@ class News_app(QWidget):
         h.addLayout(v)
         h.addWidget(self.image_label)
         l2.addLayout(h)
-        l2.addWidget(previous_page)
-
-        self.layout2.setLayout(l2)
-        self.stack.addWidget(self.layout2)
+        """
+        self.l2.addWidget(previous_page)
+        self.layout2.setLayout(self.l2)
+        self.stack.addWidget(scroll)
 
         
-        l2.setAlignment(Qt.AlignTop)
+        self.l2.setAlignment(Qt.AlignTop)
 
         self.header.setObjectName("Title")
         self.news_label.setObjectName("Label")
@@ -170,7 +177,9 @@ class News_app(QWidget):
                             }
                             """)
         self.stack.setCurrentIndex(1)
-        self.button.clicked.connect(self.search_headlines)
+        self.stack.setCurrentWidget(scroll)
+        
+        
         previous_page.clicked.connect(self.previous_page_func)
         
     def Everything(self):
@@ -260,23 +269,12 @@ class News_app(QWidget):
             response=requests.get(url)
             response.raise_for_status()
             data=response.json()
+            totalresult=data['totalResults']
             
-            self.news_title.setText(data['articles'][1]['title'])
-            self.news_title.setWordWrap(True)
-            self.news_description.setText(data['articles'][1]['description'])
-            self.news_description.setWordWrap(True)
-            self.news_url.setText(f"url={data['articles'][1]['url']}")
-            self.news_url.setWordWrap(True)
-            url_image=data['articles'][1]['urlToImage']
-            r=requests.get(url_image)
-            image_data = BytesIO(r.content)
-            pixmap = QPixmap()
-            pixmap.loadFromData(image_data.read())
-            self.image_label.setPixmap(pixmap.scaled(
-                        self.image_label.width(),
-                          self.image_label.height(),
-                            Qt.KeepAspectRatio))
-            
+            self.display_news(data)
+            self.layout2.deleteLater()
+            self.stack.setCurrentIndex(1)
+                
         except requests.exceptions.HTTPError as http_error: 
             match response.status_code: 
                 case 400: 
@@ -367,13 +365,89 @@ class News_app(QWidget):
         self.news_url.setText("")
         self.image_label.setPixmap(QPixmap())
         
-    def display_news(self):
-        pass
+    def display_news(self,data):
+
+        for i in range(5):
+                self.news_title=QLabel(self)
+                self.news_description=QLabel(self)
+                self.news_url= QLabel(self)
+                # previous_page=QPushButton("Go Back To Previous Page",self)
+                self.image_label=QLabel(self)
+                self.image_label.setFixedSize(200, 200) 
+                self.image_label.setAlignment(Qt.AlignCenter)
+                self.news_title.setText(data['articles'][i]['title'])
+                self.news_title.setWordWrap(True)
+                self.news_description.setText(data['articles'][i]['description'])
+                self.news_description.setWordWrap(True)
+                self.news_url.setText(f"url={data['articles'][i]['url']}")
+                self.news_url.setWordWrap(True)
+                url_image=data['articles'][i]['urlToImage']
+                
+                try:
+                        r=requests.get(url_image)
+                        image_data = BytesIO(r.content)
+                        pixmap = QPixmap()
+                        pixmap.loadFromData(image_data.read())
+                        self.image_label.setPixmap(pixmap.scaled(
+                                        self.image_label.width(),
+                                        self.image_label.height(),
+                                            Qt.KeepAspectRatio))
+                except:
+                        continue
+                
+                
+                self.l2.addWidget(self.news_title)
+                h=QHBoxLayout()
+                v=QVBoxLayout()
+                v.addWidget(self.news_description)
+                v.addWidget(self.news_url)
+                h.addLayout(v)
+                h.addWidget(self.image_label)
+                self.l2.addLayout(h)
+                
+                self.news_title.setObjectName("news_title")
+                self.news_description.setObjectName("description")
+                self.news_url.setObjectName("url")
+
+                self.layout2.setStyleSheet("""
+                            QPushButton, QLineEdit {
+                           font-size: 20px;
+                           font-family: Bahnschrift;
+                           }
+                           QLabel#Title{
+                            font-size:40px; 
+                            font-family:Algerian;
+                            font -weight: bold;
+                           }
+                           QLabel#Label{
+                            font-size: 20px;
+                            font-family: Bahnschrift;
+                           }
+                           QLabel#news_title{
+                            font-size:30px;
+                            font-family:Arial;
+                            font -weight: bold;
+                            text-decoration:underline;       
+                            }
+                            QLabel#description{
+                            font-size:20px;
+                            font-family:Arial;       
+                            }
+                            QLabel#url{
+                            font-size:20px;
+                            font-family:Arial;       
+                            }
+                            """)
+                # self.button.clicked.connect(self.search_headlines)
+
+        
+
 
     def previous_page_func(self):
+        current_widget = self.stack.currentWidget()
+        self.stack.removeWidget(current_widget)
         self.layout2.deleteLater()
         self.stack.setCurrentIndex(0)
-
 
 
 def main():
